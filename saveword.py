@@ -4,6 +4,8 @@ import re
 import json
 import cookielib, urllib2, urllib
 import hashlib
+import requests
+import simplejson
 
 from workflow import Workflow
 
@@ -70,6 +72,26 @@ class SaveWord(object):
         else:
             return False
 
+    def syncToAnki(self):
+        url = 'http://127.0.0.1:8765'
+        data = {
+            "action": "addNote",
+            "version": 6,
+            "params": {
+                "note": {
+                    "deckName": "all_in_one::alfred",
+                    "modelName": "Basic",
+                    "fields": {
+                        "Front": self.word.get('word'),
+                        "Back": self.word.get('phonetic') + '<br />' + self.word.get('trans')
+                    },
+                    "tags": [self.word.get('tags')]
+                }
+            }
+        }
+        response = requests.post(url, data=simplejson.dumps(data))
+        return response.json().get(u'error')
+
     def syncToYoudao(self):
         post_data = urllib.urlencode({
             'word' : self.word.get('word'),
@@ -113,11 +135,17 @@ class SaveWord(object):
         return 0
             
     def save(self, wf):
-        if self.syncToYoudao() or (self.loginToYoudao() and self.syncToYoudao()):
-            print '已成功保存至线上单词本'
+        #if self.syncToYoudao() or (self.loginToYoudao() and self.syncToYoudao()):
+        #    print '已成功保存至线上单词本'
+        #else:
+        #    result = self.saveLocal()
+        #    print result if result else '帐号出错，已临时保存至本地单词本'
+
+        ret = self.syncToAnki()
+        if ret == None:
+            print 'Save to Anki successfully.'
         else:
-            result = self.saveLocal()
-            print result if result else '帐号出错，已临时保存至本地单词本'
+            print 'Save to Anki error {ret}.'.format(ret=ret)
 
 
 if __name__ == '__main__':
